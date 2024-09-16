@@ -24,7 +24,7 @@ ProcessSetPriority "H"
 APP_NAME      := "IR"                    ; APP名称
 APP_NAME_FULL := "ImageResizer"          ; APP全称
 APP_NAME_CN   := "图片尺寸调整工具IR"     ; APP中文名称
-APP_VERSION   := "v2.0.1"                 ; 当前版本
+APP_VERSION   := "v2.0.2"                 ; 当前版本
 
 
 ;APP保存信息(ini文件存储在同目录下)
@@ -77,7 +77,7 @@ LV_LoadFilesAndDirs(this, pathArray) {
 	}
 	this.AdjustColumnsWidth()
 	this.Opt("+Redraw")
-	EnableBottons() ; 控制按钮
+	EnableBottons(LV.GetCount()) ; 控制按钮
 }
 
 
@@ -184,7 +184,7 @@ BTclear_Click(thisCtrl, info) {
 	LV.Delete()
 	filesInLV.Clear()
 	LV.Opt("+Redraw")
-	EnableBottons() ; 控制按钮
+	EnableBottons(LV.GetCount()) ; 控制按钮
 }
 
 BTremoveFinished := MainGui.Add("Button", "xp y+5 hp wp AXP", "移除已完成")
@@ -201,7 +201,7 @@ BTremoveFinished_Click(thisCtrl, info) {
 	loop deleteRows.Length
 		LV.Delete(deleteRows.Pop())
 	LV.Opt("+Redraw")
-	EnableBottons() ; 控制按钮
+	EnableBottons(LV.GetCount()) ; 控制按钮
 }
 
 BTstart := MainGui.Add("Button", "xp y+5 h40 wp AXP", "调整图片")
@@ -211,6 +211,7 @@ BTstart_Click(thisCtrl, info) {
 	MainGui.Opt("+OwnDialogs")
 	if RD1.Value and MsgBox("图片调整完将覆盖原文件,是否继续？",, 68) = "No"
 		return
+	EnableBottons(false) ; 禁用按钮
 	;开始执行
 	dirName := APP_NAME_FULL "_" A_Now
 	loop LV.GetCount() {
@@ -229,9 +230,10 @@ BTstart_Click(thisCtrl, info) {
 			file.status := "处理失败"
 		else
 			file.status := "已完成"
-		LV.Modify(A_Index, "Col4", file.status)
+		LV.Modify(A_Index, "Vis Focus Col4", file.status) ; 可见 焦点 选中 列4修改
 	}
 	LV.AdjustColumnsWidth()
+	EnableBottons(true) ; 启用按钮
 }
 /**
  * 将图片缩放到指定尺寸,缩放前会根据指定尺寸的宽高比裁剪(居中)图片
@@ -277,8 +279,8 @@ ImageCropAndScale(srcPath, tarPath, requireDim, doCrop := true, quality := "") {
 	return 0
 }
 ;启用/禁用按钮函数
-EnableBottons() {
-	BTstart.Enabled := BTclear.Enabled := BTremoveFinished.Enabled := LV.GetCount() ? true : false
+EnableBottons(condition) {
+	BTstart.Enabled := BTclear.Enabled := BTremoveFinished.Enabled := condition ? true : false
 }
 
 
@@ -339,7 +341,7 @@ DoBeforeExit(*) {
 LV.LoadFilesAndDirs(Path_InArgs()) ; 拖拽文件到程序图标上启动
 DDLdimensionMod_Change()           ; 尺寸缩放相关设置初始化
 RD_Click()                         ; 保存方式相关设置初始化
-EnableBottons()                    ; 按钮初始化
+EnableBottons(LV.GetCount())       ; 按钮初始化
 
 
 ;GUI显示
