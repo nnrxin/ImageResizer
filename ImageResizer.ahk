@@ -24,7 +24,7 @@ ProcessSetPriority "H"
 APP_NAME      := "IR"                    ; APP名称
 APP_NAME_FULL := "ImageResizer"          ; APP全称
 APP_NAME_CN   := "图片尺寸调整工具IR"     ; APP中文名称
-APP_VERSION   := "v2.0.0"                 ; 当前版本
+APP_VERSION   := "v2.0.1"                 ; 当前版本
 
 
 ;APP保存信息(ini文件存储在同目录下)
@@ -212,13 +212,13 @@ BTstart_Click(thisCtrl, info) {
 	if RD1.Value and MsgBox("图片调整完将覆盖原文件,是否继续？",, 68) = "No"
 		return
 	;开始执行
+	dirName := APP_NAME_FULL "_" A_Now
 	loop LV.GetCount() {
 		;确认目标文件名
 	    file := filesInLV[LV.GetText(A_Index, 2)]
 		if RD1.Value ; 覆盖原文件
 			tarPath := file.path
 		else { ; 另存为新文件
-			dirName := "IR处理后" A_Now
 			tarPath := A_ScriptDir "\" dirName "\" file.midPath || file.name
 			if DDLextension.Value != 1 
 				tarPath := Path_RenameExt(tarPath, DDLextension.Text) ; 格式转换
