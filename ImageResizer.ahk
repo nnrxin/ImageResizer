@@ -1,6 +1,7 @@
 ﻿;=======================================================================================================================
-; by:nnrxin
-; email:nnrxin@163.com
+; Copyright (c) 2024 nnrxin
+; All rights reserved.
+; This script is licensed under the MIT License.
 ;=======================================================================================================================
 
 ;基础参数设置
@@ -20,11 +21,31 @@ ProcessSetPriority "H"
 #Include <File\Path>
 #Include <Image\ImagePut\ImagePut>
 
-;APP基本信息
-APP_NAME      := "IR"                    ; APP名称
-APP_NAME_FULL := "ImageResizer"          ; APP全称
-APP_NAME_CN   := "图片尺寸调整工具IR"     ; APP中文名称
-APP_VERSION   := "v2.0.2"                 ; 当前版本
+
+; APP名称
+APP_NAME      := "IR"
+;@Ahk2Exe-Let U_NameShort = %A_PriorLine~U)(^.*")|(".*$)%
+; APP全称
+APP_NAME_FULL := "ImageResizer"
+;@Ahk2Exe-Let U_Name = %A_PriorLine~U)(^.*")|(".*$)%
+; APP中文名称
+APP_NAME_CN   := "图片尺寸调整工具IR"
+;@Ahk2Exe-Let U_NameCN = %A_PriorLine~U)(^.*")|(".*$)%
+; 当前版本
+APP_VERSION   := "v2.0.3"
+;@Ahk2Exe-Let U_ProductVersion = %A_PriorLine~U)(^.*")|(".*$)%
+
+
+;编译后文件名
+;@Ahk2Exe-Obey U_bits, = %A_PtrSize% * 8
+;@Ahk2Exe-ExeName %U_NameCN%(%U_bits%bit) %U_ProductVersion%
+;编译后属性信息
+;@Ahk2Exe-SetName %U_Name%
+;@Ahk2Exe-SetProductVersion %U_ProductVersion%
+;@Ahk2Exe-SetLanguage 0x0804
+;@Ahk2Exe-SetCopyright Copyright (c) 2024 nnrxin
+;编译后的图标(与脚本名同目录同名的ico文件,不存在时会报错)
+;@Ahk2Exe-SetMainIcon %A_ScriptName~\.[^\.]+$~.ico%
 
 
 ;APP保存信息(ini文件存储在同目录下)
@@ -32,14 +53,15 @@ INI := IniSaved(A_ScriptDir "\" APP_NAME "_config.ini")       ;创建配置ini�
 ;全局参数
 G := {}
 
+
 ;=================================
 ;↓↓↓↓↓↓↓↓↓  MainGUI 构建 ↓↓↓↓↓↓↓↓↓
 ;=================================
 
 ;创建主GUI
-MainGui := Gui("+Resize +MinSize700x500", APP_NAME_CN " " APP_VERSION)   ;GUI可修改尺寸
-MainGui.Show("hide w10 h10")
-MainGui.GetClientPos(,, &MainGuiWidth, &MainGuiHeight)
+MainGuiWidth := 700, MainGuiHeight := 500
+MainGui := Gui("+Resize +MinSize" MainGuiWidth "x" MainGuiHeight , APP_NAME_CN " " APP_VERSION)   ;GUI可修改尺寸
+MainGui.Show("hide w" MainGuiWidth " h" MainGuiHeight)
 MainGui.MarginX := MainGui.MarginY := 0
 MainGui.SetFont("s9", "微软雅黑")
 ;MainGui.BackColor := 0xCCE8CF   ;护眼蓝色
@@ -72,12 +94,13 @@ LV_LoadFilesAndDirs(this, pathArray) {
 		SplitPath file.path, &OutFileName, &OutDir, &OutExtension, &OutNameNoExt, &OutDrive
 		if !exts.IndexOf(OutExtension)
 			continue
-		f := filesInLV[file.path] := {path: file.path, name: OutFileName, sizeKB: Format("{:.1f} KB", FileGetSize(file.path)/1024), status: "未处理", midPath: file.midPath}
+		f := filesInLV[file.path] := {path: file.path, name: OutFileName, sizeKB: Format("{:.1f} KB", FileGetSize(file.path)/1024), status: "等待处理", midPath: file.midPath}
 		this.Add("Icon" this.LoadFileIcon(f.path), f.name, f.path, f.sizeKB, f.status)
 	}
 	this.AdjustColumnsWidth()
 	this.Opt("+Redraw")
 	EnableBottons(LV.GetCount()) ; 控制按钮
+	SB.SetText("图片总数: " LV.GetCount())
 }
 
 
@@ -104,7 +127,7 @@ RD_Click(*) {
 }
 
 MainGui.Add("Text", "xs+10 yp+22 h26 w40 +0x200 AXP", "保存为:")
-DDLextension := MainGui.Add("DDL", "x+0 yp w65 AXP", ["原格式",".bmp",".dib",".gif",".heic",".hif",".jpg",".jpeg",".jpe",".jfif",".png",".rle",".tif",".tiff"])
+DDLextension := MainGui.Add("DDL", "x+0 yp w65 AXP", ["原格式","bmp","dib","gif","heic","hif","jpg","jpeg","jpe","jfif","png","rle","tif","tiff"])
 DDLextension.Value := INI.Init(DDLextension, "save", "extension", 1)
 DDLextension2 := MainGui.Add("DDL", "xp yp wp AXP choose1 Disabled", ["原格式"]) ; 假的控件用于假装替换
 
@@ -185,15 +208,16 @@ BTclear_Click(thisCtrl, info) {
 	filesInLV.Clear()
 	LV.Opt("+Redraw")
 	EnableBottons(LV.GetCount()) ; 控制按钮
+	SB.SetText("移除了所有项")
 }
 
-BTremoveFinished := MainGui.Add("Button", "xp y+5 hp wp AXP", "移除已完成")
+BTremoveFinished := MainGui.Add("Button", "xp y+5 hp wp AXP", "移除成功项")
 BTremoveFinished.OnEvent("Click", BTremoveFinished_Click)
 BTremoveFinished_Click(thisCtrl, info) {
 	LV.Opt("-Redraw")
 	deleteRows := []
 	Loop LV.GetCount() {
-		if LV.GetText(A_Index, 4) != "已完成"
+		if LV.GetText(A_Index, 4) != "处理成功"
 			continue
 		filesInLV.Delete(LV.GetText(A_Index, 2))
 		deleteRows.Push(A_Index)
@@ -202,6 +226,7 @@ BTremoveFinished_Click(thisCtrl, info) {
 		LV.Delete(deleteRows.Pop())
 	LV.Opt("+Redraw")
 	EnableBottons(LV.GetCount()) ; 控制按钮
+	SB.SetText("移除了完成项")
 }
 
 BTstart := MainGui.Add("Button", "xp y+5 h40 wp AXP", "调整图片")
@@ -220,7 +245,7 @@ BTstart_Click(thisCtrl, info) {
 		if RD1.Value ; 覆盖原文件
 			tarPath := file.path
 		else { ; 另存为新文件
-			tarPath := A_ScriptDir "\" dirName "\" file.midPath || file.name
+			tarPath := A_ScriptDir "\" dirName "\" (file.midPath || file.name)
 			if DDLextension.Value != 1 
 				tarPath := Path_RenameExt(tarPath, DDLextension.Text) ; 格式转换
 		}
@@ -229,11 +254,14 @@ BTstart_Click(thisCtrl, info) {
 		if ImageCropAndScale(file.path, tarPath, requireDim, CBkeepAspectRatio.Value, EDquailty.Value)
 			file.status := "处理失败"
 		else
-			file.status := "已完成"
+			file.status := "处理成功"
 		LV.Modify(A_Index, "Vis Focus Col4", file.status) ; 可见 焦点 选中 列4修改
 	}
 	LV.AdjustColumnsWidth()
 	EnableBottons(true) ; 启用按钮
+	SB.SetText("处理完成!")
+	if !RD1.Value ; 另存模式时完成后打开新目录
+		Run A_ScriptDir "\" dirName "\"
 }
 /**
  * 将图片缩放到指定尺寸,缩放前会根据指定尺寸的宽高比裁剪(居中)图片
@@ -338,17 +366,16 @@ DoBeforeExit(*) {
 
 
 ;Gui初始化
-LV.LoadFilesAndDirs(Path_InArgs()) ; 拖拽文件到程序图标上启动
+DropPaths := Path_InArgs()
+if DropPaths.Length
+	LV.LoadFilesAndDirs(DropPaths) ; 拖拽文件到程序图标上启动
 DDLdimensionMod_Change()           ; 尺寸缩放相关设置初始化
 RD_Click()                         ; 保存方式相关设置初始化
 EnableBottons(LV.GetCount())       ; 按钮初始化
 
 
 ;GUI显示
-dpiRate := 96 / A_ScreenDPI
-MainGui.Show("hide Center w" SysGet(16) * dpiRate " h" SysGet(17) * dpiRate)
-guiSizeRate := 0.2 * dpiRate
-MainGui.Show("Center w" SysGet(16) * guiSizeRate " h" SysGet(17) * guiSizeRate)
+MainGui.Show("Center")
 
 ;=========================
 return    ;自动运行段结束 |
