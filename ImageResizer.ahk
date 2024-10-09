@@ -20,6 +20,7 @@ ProcessSetPriority "H"
 #Include <_BasicLibs_>
 #Include <File\Path>
 #Include <Image\ImagePut\ImagePut>
+#Include <GUI\ProgressInStatusBar>
 
 
 ; APP名称
@@ -32,13 +33,13 @@ APP_NAME_FULL := "ImageResizer"
 APP_NAME_CN   := "图片尺寸调整工具IR"
 ;@Ahk2Exe-Let U_NameCN = %A_PriorLine~U)(^.*")|(".*$)%
 ; 当前版本
-APP_VERSION   := "v2.0.3"
+APP_VERSION   := "1.0.0"
 ;@Ahk2Exe-Let U_ProductVersion = %A_PriorLine~U)(^.*")|(".*$)%
 
 
 ;编译后文件名
 ;@Ahk2Exe-Obey U_bits, = %A_PtrSize% * 8
-;@Ahk2Exe-ExeName %U_NameCN%(%U_bits%bit) %U_ProductVersion%
+;@Ahk2Exe-ExeName %U_NameCN%(%U_bits%bit) v%U_ProductVersion%
 ;编译后属性信息
 ;@Ahk2Exe-SetName %U_Name%
 ;@Ahk2Exe-SetProductVersion %U_ProductVersion%
@@ -60,7 +61,7 @@ G := {}
 
 ;创建主GUI
 MainGuiWidth := 700, MainGuiHeight := 500
-MainGui := Gui("+Resize +MinSize" MainGuiWidth "x" MainGuiHeight , APP_NAME_CN " " APP_VERSION)   ;GUI可修改尺寸
+MainGui := Gui("+Resize +MinSize" MainGuiWidth "x" MainGuiHeight , APP_NAME_CN " v" APP_VERSION)   ;GUI可修改尺寸
 MainGui.Show("hide w" MainGuiWidth " h" MainGuiHeight)
 MainGui.MarginX := MainGui.MarginY := 0
 MainGui.SetFont("s9", "微软雅黑")
@@ -236,10 +237,20 @@ BTstart_Click(thisCtrl, info) {
 	MainGui.Opt("+OwnDialogs")
 	if RD1.Value and MsgBox("图片调整完将覆盖原文件,是否继续？",, 68) = "No"
 		return
-	EnableBottons(false) ; 禁用按钮
+	;设置进度条
+	MaxCount := LV.GetCount()
+	SB.SetText("处理中")
+	SB.SetParts(100,100)
+	if !SB.HasProp("Progress")
+		SB.Progress := ProgressInStatusBar(SB, 0, 3)
+	SB.Progress.Value := 0
+	SB.Progress.Range := "0-" MaxCount
+	SB.Progress.Visible := true
 	;开始执行
+	EnableBottons(false) ; 禁用按钮
 	dirName := APP_NAME_FULL "_" A_Now
 	loop LV.GetCount() {
+		SB.SetText(A_index "/" MaxCount, 2)
 		;确认目标文件名
 	    file := filesInLV[LV.GetText(A_Index, 2)]
 		if RD1.Value ; 覆盖原文件
@@ -256,9 +267,12 @@ BTstart_Click(thisCtrl, info) {
 		else
 			file.status := "处理成功"
 		LV.Modify(A_Index, "Vis Focus Col4", file.status) ; 可见 焦点 选中 列4修改
+		SB.Progress.Value++
 	}
 	LV.AdjustColumnsWidth()
 	EnableBottons(true) ; 启用按钮
+	SB.Progress.Visible := false
+	SB.SetParts()
 	SB.SetText("处理完成!")
 	if !RD1.Value ; 另存模式时完成后打开新目录
 		Run A_ScriptDir "\" dirName "\"
@@ -349,6 +363,8 @@ MainGui_DropFiles(GuiObj, GuiCtrlObj, FileArray, X, Y) {
 MainGui.OnEvent("Size", MainGui_Size)
 MainGui_Size(thisGui, MinMax, W, H) {
 	LV.AdjustColumnsWidth()
+	if SB.HasProp("Progress")
+		SB.Progress.AdjustSize()
 }
 
 ;GUI关闭
