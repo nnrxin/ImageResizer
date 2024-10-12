@@ -33,7 +33,7 @@ APP_NAME_FULL := "ImageResizer"
 APP_NAME_CN   := "图片尺寸调整工具IR"
 ;@Ahk2Exe-Let U_NameCN = %A_PriorLine~U)(^.*")|(".*$)%
 ; 当前版本
-APP_VERSION   := "1.0.0"
+APP_VERSION   := "1.0.1"
 ;@Ahk2Exe-Let U_ProductVersion = %A_PriorLine~U)(^.*")|(".*$)%
 
 
@@ -74,6 +74,13 @@ MainGui.Tips := GuiCtrlTips(MainGui)
 ;列表框
 LV := MainGui.Add("ListView", "Section xm+5 ym+5 w" MainGuiWidth-GroupWidth-17 " h" MainGuiHeight-30 " AW AH", ["文件名","路径","大小","状态"])
 LV.ModifyCol(3, "Right"), LV.ModifyCol(4, "Center")
+LV.OnEvent("DoubleClick", (thisLV, RowIndex) {
+	if !RowIndex
+		return
+	file := filesInLV[LV.GetText(RowIndex, 2)]
+	dim := ImagePut.Dimensions(file.path)
+	PicGuiHwnd := ImagePutWindow(file.path, file.name ";  分辨率: " dim[1] " x " dim[2] ";  大小: " file.sizeKB,,,, MainGui.Hwnd)
+})
 ;列表加载文件
 filesInLV := Map()
 LV.LoadFilesAndDirs := LV_LoadFilesAndDirs
